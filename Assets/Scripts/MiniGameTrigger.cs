@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MiniGameTrigger : MonoBehaviour
 {
@@ -40,7 +41,7 @@ public class MiniGameTrigger : MonoBehaviour
 
     private void StartMiniGame()
     {
-        Debug.Log("미니게임 시작! (5단계에서 씬 전환 구현 예정)");
-        // 5단계에서 씬 전환 코드 추가 예정
+        Debug.Log("스택 미니게임 시작!");
+        SceneManager.LoadScene("StackMiniGame");
     }
 }

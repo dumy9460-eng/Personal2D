@@ -7,27 +7,27 @@ using UnityEngine.SceneManagement;
 public class StackGameManager : MonoBehaviour
 {
     [Header("게임 설정")]
-    public GameObject blockPrefab;          // 블록 프리팹
-    public float moveSpeed = 2f;            // 블록 이동 속도
-    public float moveRange = 3f;            // 블록 이동 범위
-    public float dropHeight = 4f;           // 블록 시작 높이
+    public GameObject blockPrefab;
+    public float moveSpeed = 2f;
+    public float moveRange = 3f;
+    public float dropHeight = 3f;
 
     [Header("UI")]
-    public TextMeshProUGUI scoreText;       // 점수 텍스트
-    public GameObject gameOverPanel;        // 게임 오버 패널
-    public TextMeshProUGUI finalScoreText;  // 최종 점수 텍스트
+    public TextMeshProUGUI scoreText;
+    public GameObject gameOverPanel;
+    public TextMeshProUGUI finalScoreText;
 
-    private GameObject currentBlock;        // 현재 움직이는 블록
-    private GameObject lastBlock;           // 마지막으로 쌓인 블록
-    private int score = 0;                  // 현재 점수
-    private bool isGameOver = false;        // 게임 오버 상태
-    private float moveDirection = 1f;       // 이동 방향
-    private float returnTimer = 0f;         // 복귀 타이머
-    private bool isReturning = false;       // 복귀 중인지
+    private GameObject currentBlock;
+    private GameObject lastBlock;
+    private int score = 0;
+    private bool isGameOver = false;
+    private float moveDirection = 1f;
+    private float returnTimer = 0f;
+    private bool isReturning = false;
 
     void Start()
     {
-        // 첫 번째 블록 생성
+        Debug.Log("=== 게임 시작 ===");
         SpawnNewBlock();
         UpdateScoreUI();
     }
@@ -36,7 +36,6 @@ public class StackGameManager : MonoBehaviour
     {
         if (isGameOver)
         {
-            // 게임 오버 후 2.5초 뒤 메인맵으로 복귀
             if (isReturning)
             {
                 returnTimer += Time.deltaTime;
@@ -48,14 +47,41 @@ public class StackGameManager : MonoBehaviour
             return;
         }
 
-        // 현재 블록 좌우 이동
+        // 떨어진 블록 체크
+        GameObject[] blocks = GameObject.FindGameObjectsWithTag("Block");
+        foreach (GameObject block in blocks)
+        {
+            if (block != null && block != currentBlock && block.transform.position.y < -7f)
+            {
+                Debug.Log("블록이 떨어짐 - 게임오버!");
+                Destroy(block);
+                GameOver();
+                return;
+            }
+        }
+
+        // 현재 블록 움직임
         if (currentBlock != null)
         {
-            MoveCurrentBlock();
+            Vector3 pos = currentBlock.transform.position;
+            pos.x += moveDirection * moveSpeed * Time.deltaTime;
 
-            // 스페이스바로 블록 떨어뜨리기
+            if (pos.x >= moveRange)
+            {
+                pos.x = moveRange;
+                moveDirection = -1f;
+            }
+            else if (pos.x <= -moveRange)
+            {
+                pos.x = -moveRange;
+                moveDirection = 1f;
+            }
+
+            currentBlock.transform.position = pos;
+
             if (Input.GetKeyDown(KeyCode.Space))
             {
+                Debug.Log("스페이스바 - 블록 떨어뜨림");
                 DropBlock();
             }
         }
@@ -63,7 +89,12 @@ public class StackGameManager : MonoBehaviour
 
     void SpawnNewBlock()
     {
-        // 새 블록 생성
+        if (blockPrefab == null)
+        {
+            Debug.LogError("Block Prefab 없음!");
+            return;
+        }
+
         float spawnY = dropHeight;
         if (lastBlock != null)
         {
@@ -72,51 +103,28 @@ public class StackGameManager : MonoBehaviour
 
         currentBlock = Instantiate(blockPrefab, new Vector3(0, spawnY, 0), Quaternion.identity);
 
-        // Rigidbody를 Kinematic으로 (떨어지지 않게)
         Rigidbody2D rb = currentBlock.GetComponent<Rigidbody2D>();
         if (rb != null)
         {
             rb.bodyType = RigidbodyType2D.Kinematic;
         }
-    }
 
-    void MoveCurrentBlock()
-    {
-        // 블록 좌우 이동
-        Vector3 pos = currentBlock.transform.position;
-        pos.x += moveDirection * moveSpeed * Time.deltaTime;
-
-        // 범위 제한 및 방향 전환
-        if (pos.x >= moveRange)
-        {
-            pos.x = moveRange;
-            moveDirection = -1f;
-        }
-        else if (pos.x <= -moveRange)
-        {
-            pos.x = -moveRange;
-            moveDirection = 1f;
-        }
-
-        currentBlock.transform.position = pos;
+        Debug.Log("블록 생성: " + currentBlock.name);
     }
 
     void DropBlock()
     {
-        // 블록을 Dynamic으로 변경 (떨어지게)
+        if (currentBlock == null) return;
+
         Rigidbody2D rb = currentBlock.GetComponent<Rigidbody2D>();
         if (rb != null)
         {
             rb.bodyType = RigidbodyType2D.Dynamic;
         }
 
-        // 점수 증가
-        score++;
-        UpdateScoreUI();
-
-        // 다음 블록 준비
         lastBlock = currentBlock;
-        Invoke("SpawnNewBlock", 0.5f);  // 0.5초 후 새 블록 생성
+        currentBlock = null;
+        Invoke("SpawnNewBlock", 1f);
     }
 
     void UpdateScoreUI()
@@ -127,6 +135,13 @@ public class StackGameManager : MonoBehaviour
         }
     }
 
+    public void AddScore()
+    {
+        score++;
+        UpdateScoreUI();
+        Debug.Log("점수: " + score);
+    }
+
     public void GameOver()
     {
         if (isGameOver) return;
@@ -135,10 +150,8 @@ public class StackGameManager : MonoBehaviour
         isReturning = true;
         returnTimer = 0f;
 
-        // 점수 저장
         PlayerPrefs.SetInt("LastScore", score);
 
-        // 최고 점수 갱신
         int bestScore = PlayerPrefs.GetInt("HighScore", 0);
         if (score > bestScore)
         {
@@ -146,7 +159,6 @@ public class StackGameManager : MonoBehaviour
         }
         PlayerPrefs.Save();
 
-        // 게임 오버 UI 표시
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
